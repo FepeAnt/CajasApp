@@ -6,7 +6,7 @@ import { mensajeError } from '@/lib/errors';
 import { createClient } from '@/lib/supabase/client';
 
 /** Diálogo modal con <dialog>: foco atrapado, Escape y fondo bloqueado vienen del navegador. */
-export function Dialog({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: ReactNode }) {
+export function Dialog({ open, onClose, title, children, cerrable = true, compacto = false }: { open: boolean; onClose: () => void; title: string; children: ReactNode; cerrable?: boolean; compacto?: boolean }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const d = ref.current;
@@ -18,9 +18,10 @@ export function Dialog({ open, onClose, title, children }: { open: boolean; onCl
     <dialog
       ref={ref}
       onClose={onClose}
-      onClick={(e) => { if (e.target === ref.current) onClose(); }}
+      onCancel={(e) => { if (!cerrable) e.preventDefault(); }}
+      onClick={(e) => { if (cerrable && e.target === ref.current) onClose(); }}
       aria-label={title}
-      className="m-auto max-h-[calc(100vh-2rem)] w-[calc(100%-2rem)] max-w-[520px] overflow-auto rounded-2xl border-0 bg-surface p-0 text-ink shadow-2xl backdrop:bg-black/55"
+      className={`m-auto ${compacto ? 'max-w-[420px]' : 'max-w-[520px]'} max-h-[calc(100vh-2rem)] w-[calc(100%-2rem)] overflow-auto rounded-2xl border-0 bg-surface p-0 text-ink shadow-2xl backdrop:bg-black/55`}
     >
       {open && (
         <div className="p-[22px]">

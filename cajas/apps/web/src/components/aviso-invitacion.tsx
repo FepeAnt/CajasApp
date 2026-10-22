@@ -1,51 +1,56 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { Avatar } from './ui';
+import { Dialog, useRpc } from './client-ui';
 
-interface Nueva { id: string; por: string; caja: string }
+export interface InvitacionNueva { id: string; caja: string; por: string; porUsuario: string | null; foto: string | null; rol: 'editor' | 'viewer' }
 
 /**
- * Cartelito suave al abrir la app cuando hay invitaciones nuevas. Se marca como visto en el servidor
- * (así no vuelve a aparecer, ni en este ni en otro dispositivo). Al tocarlo lleva a Invitaciones.
+ * Recuadro al abrir la app cuando hay invitaciones nuevas: se acepta o rechaza ahí mismo, de a una,
+ * y desaparece al terminar. "Ver más tarde" la deja en la sección Invitaciones. Se marca como vista en
+ * el servidor, así no vuelve a aparecer (ni en otro dispositivo).
  */
-export function AvisoInvitacion({ nuevas }: { nuevas: Nueva[] }) {
-  const router = useRouter();
-  const [visible, setVisible] = useState(false);
-  const [cierra, setCierra] = useState(false);
-  const [datos, setDatos] = useState<Nueva[]>([]);
-  const mostrada = useRef(false);
-  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
-  const n = nuevas.length;
+export function AvisoInvitacion({ nuevas }: { nuevas: InvitacionNueva[] }) {
+  const { call, pending, error, supabase } = useRpc();
+  const [cola, setCola] = useState<InvitacionNueva[]>([]);
+  const iniciada = useRef(false);
 
   useEffect(() => {
-    if (!n || mostrada.current) return;
-    mostrada.current = true;
-    setDatos(nuevas);
-    setVisible(true);
-    void createClient().rpc('marcar_invitaciones_vistas');
-    timers.current = [setTimeout(() => setCierra(true), 7000), setTimeout(() => setVisible(false), 7400)];
-  }, [n, nuevas]);
-  useEffect(() => () => timers.current.forEach(clearTimeout), []);
+    if (!nuevas.length || iniciada.current) return;
+    iniciada.current = true;
+    setCola(nuevas);
+    void supabase.rpc('marcar_invitaciones_vistas');
+  }, [nuevas, supabase]);
 
-  if (!visible || !datos.length) return null;
-  const primera = datos[0] as Nueva;
-  const cant = datos.length;
+  const actual = cola[0];
+  const siguiente = () => setCola((c) => c.slice(1));
+
+  async function responder(aceptar: boolean) {
+    if (!actual) return;
+    const r = await call('responder_invitacion', { p_id: actual.id, p_aceptar: aceptar });
+    if (r.ok) siguiente();
+  }
 
   return (
-    <div role="status" aria-live="polite" className="pointer-events-none fixed inset-x-0 top-3 z-50 flex justify-center px-4">
-      <button
-        type="button"
-        onClick={() => { setVisible(false); router.push('/invitaciones'); }}
-        className={`pointer-events-auto flex max-w-md items-center gap-3 rounded-2xl border border-line bg-surface px-4 py-3 text-left shadow-2xl transition-all duration-500 ${cierra ? '-translate-y-2 opacity-0' : 'translate-y-0 opacity-100'}`}
-      >
-        <span className="grid h-9 w-9 flex-none place-items-center rounded-full bg-accent-soft text-accent" aria-hidden>✉</span>
-        <span className="min-w-0">
-          <b className="block">{cant === 1 ? 'Tenés una invitación nueva' : `Tenés ${cant} invitaciones nuevas`}</b>
-          <span className="block truncate text-[13px] text-muted">{cant === 1 ? `@${primera.por} te invitó a “${primera.caja}”. Tocá para verla.` : 'Tocá para verlas y elegir si aceptás.'}</span>
-        </span>
-      </button>
-    </div>
+    <Dialog open={Boolean(actual)} onClose={() => setCola([])} compacto title="Invitación nueva">
+      {actual && (
+        <div className="flex flex-col items-center gap-3 text-center">
+          <Avatar id={actual.id} nombre={actual.por} size={64} foto={actual.foto} />
+          <p>
+            <b>{actual.por}</b>{actual.porUsuario ? <span className="text-muted"> @{actual.porUsuario}</span> : null}<br />
+            te invitó a la caja <b>“{actual.caja}”</b>
+          </p>
+          <p className="text-[13px] text-muted">{actual.rol === 'editor' ? 'Podrías ver y cargar movimientos.' : 'Solo podrías ver.'} No ves nada de la caja hasta que aceptes.</p>
+          {cola.length > 1 && <p className="text-[13px] text-muted">Tenés {cola.length - 1} {cola.length - 1 === 1 ? 'invitación más' : 'invitaciones más'}.</p>}
+          {error && <p role="alert" className="err">{error}</p>}
+          <div className="mt-1 flex w-full flex-wrap justify-center gap-2.5">
+            <button className="btn btn-primary" disabled={pending} onClick={() => responder(true)}>Aceptar</button>
+            <button className="btn" disabled={pending} onClick={() => responder(false)}>Rechazar</button>
+          </div>
+          <button type="button" className="text-[14px] font-semibold text-muted hover:underline" onClick={() => setCola([])}>Ver más tarde</button>
+        </div>
+      )}
+    </Dialog>
   );
 }

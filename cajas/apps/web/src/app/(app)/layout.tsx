@@ -6,13 +6,13 @@ import { Logo } from '@/components/logo';
 import { CajaLink, RailLink, TabLink } from '@/components/nav';
 import { Avatar } from '@/components/ui';
 import { NuevaCaja } from '@/components/dialogs';
+import { PedirUsuario } from '@/components/pedir-usuario';
 import { AvisoInvitacion } from '@/components/aviso-invitacion';
 import { getCajas, getInvitaciones, getProfile } from '@/lib/data';
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const profile = await getProfile();
   if (!profile) redirect('/login');
-  if (!profile.username) redirect('/usuario');
   const [cajas, invitaciones] = await Promise.all([getCajas(), getInvitaciones()]);
   const pendientes = invitaciones.length;
 
@@ -49,7 +49,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         <div className="flex items-center gap-2"><Avatar id={profile.id} nombre={profile.nombre} size={30} foto={profile.avatar_url} /><div className="w-28"><CerrarSesion /></div></div>
       </div>
 
-      <AvisoInvitacion nuevas={invitaciones.filter((i) => i.nueva).map((i) => ({ id: i.id, por: i.por_username ?? i.por_nombre, caja: i.caja_nombre }))} />
+      {!profile.username
+        ? <PedirUsuario nombre={profile.nombre} />
+        : <AvisoInvitacion nuevas={invitaciones.filter((i) => i.nueva).map((i) => ({ id: i.id, caja: i.caja_nombre, por: i.por_nombre, porUsuario: i.por_username, foto: i.por_avatar, rol: i.rol }))} />}
       <main className="flex min-w-0 flex-col gap-6">{children}</main>
 
       <nav aria-label="Principal" className="fixed inset-x-0 bottom-0 z-30 flex border-t border-line bg-surface px-2 pb-[calc(6px+env(safe-area-inset-bottom,0px))] pt-1.5 min-[861px]:hidden">

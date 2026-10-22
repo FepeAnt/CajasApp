@@ -1,14 +1,12 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { type FormEvent, useEffect, useState } from 'react';
 import { USERNAME_RE, limpiarUsername } from '@/lib/avatar';
 import { Field, useRpc } from './client-ui';
 
 /** Elegir o cambiar el nombre de usuario, con chequeo de disponibilidad mientras se escribe. */
-export function UsernameForm({ actual, onboarding }: { actual: string | null; onboarding?: boolean }) {
+export function UsernameForm({ actual, onboarding, onDone }: { actual: string | null; onboarding?: boolean; onDone?: () => void }) {
   const { call, pending, error, setError, supabase } = useRpc();
-  const router = useRouter();
   const [u, setU] = useState(actual ?? '');
   const [estado, setEstado] = useState<'' | 'ok' | 'usado' | 'invalido' | 'igual'>('');
   const [guardado, setGuardado] = useState(false);
@@ -32,7 +30,7 @@ export function UsernameForm({ actual, onboarding }: { actual: string | null; on
     if (!USERNAME_RE.test(limpiarUsername(u))) return setError('Usá de 3 a 20 letras minúsculas, números o guion bajo (_).');
     const r = await call('definir_username', { p_u: u });
     if (!r.ok) return;
-    if (onboarding) { router.replace('/'); router.refresh(); } else setGuardado(true);
+    if (onboarding) onDone?.(); else setGuardado(true);
   }
 
   return (
