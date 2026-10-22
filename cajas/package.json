@@ -1,0 +1,18 @@
+{
+  "name": "cajas",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": ["packages/*", "apps/*"],
+  "scripts": {
+    "dev": "npm run dev -w @cajas/web",
+    "build": "npm run build -w @cajas/web",
+    "test": "npm run test -w @cajas/core",
+    "test:db": "bash supabase/tests/run.sh",
+    "typecheck": "npm run typecheck -w @cajas/core && npm run typecheck -w @cajas/web",
+    "lint": "npm run lint -w @cajas/web"
+  },
+  "devDependencies": {
+    "typescript": "5.6.3",
+    "vitest": "2.1.8"
+  }
+}

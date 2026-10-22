@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg:#EFF1F5; --surface:#FFFFFF; --surface2:#F6F7FA; --ink:#11141B; --muted:#596173; --line:#DCE0E8;
+  --accent:#2A43E6; --accent-ink:#FFFFFF; --accent-soft:#E4E8FF;
+  --pos:#0B7F58; --neg:#C2352C; --warn:#9A6208; --pos-soft:#DDF3EA; --neg-soft:#FBE4E2; --warn-soft:#FBEFD6;
+  --shadow:0 1px 2px rgba(17,20,27,.06),0 8px 24px -12px rgba(17,20,27,.18);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:#0D1016; --surface:#161A23; --surface2:#1C212C; --ink:#EEF0F6; --muted:#9AA2B3; --line:#272D3B;
+    --accent:#8796FF; --accent-ink:#0D1016; --accent-soft:#222A55;
+    --pos:#4CD0A1; --neg:#FF8077; --warn:#E6B65C; --pos-soft:#133528; --neg-soft:#3B1D1B; --warn-soft:#3A2E14;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.6);
+    color-scheme: dark;
+  }
+}
+html, body { min-height: 100%; }
+body {
+  background: var(--bg); color: var(--ink); font-family: 'Hanken Grotesk', system-ui, sans-serif;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  -webkit-font-smoothing: antialiased;
+}
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+.tnum { font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+@layer components {
+  .btn { @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[10px] border border-line bg-surface px-3.5 py-2 font-semibold hover:border-muted disabled:cursor-not-allowed disabled:opacity-50; }
+  .btn-primary { @apply border-accent bg-accent text-accent-ink hover:brightness-110; }
+  .btn-danger { @apply text-neg; }
+  .btn-sm { @apply rounded-lg px-2.5 py-1 text-[13px]; }
+  .panel { @apply min-w-0 rounded-2xl border border-line bg-surface p-5; }
+  .input { @apply w-full min-w-0 rounded-[10px] border border-line bg-surface px-3 py-2.5 focus:border-transparent focus:outline focus:outline-2 focus:outline-accent; }
+  .label { @apply mb-1.5 block text-[13px] font-semibold text-muted; }
+  .chip { @apply inline-flex items-center gap-1.5 rounded-full border border-line bg-surface2 px-2.5 py-0.5 text-xs font-semibold text-muted; }
+  .err { @apply mt-1 text-[13px] text-neg; }
+}
