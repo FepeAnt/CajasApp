@@ -8,10 +8,11 @@ import { Avatar } from '@/components/ui';
 import { NuevaCaja } from '@/components/dialogs';
 import { PedirUsuario } from '@/components/pedir-usuario';
 import { AvisoInvitacion } from '@/components/aviso-invitacion';
-import { getCajas, getInvitaciones, getProfile } from '@/lib/data';
+import { getCajas, getInvitaciones, getProfile, getUser } from '@/lib/data';
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
-  const profile = await getProfile();
+  const [profile, user] = await Promise.all([getProfile(), getUser()]);
+  const deseado = typeof user?.user_metadata?.username === 'string' ? user.user_metadata.username : undefined;
   if (!profile) redirect('/login');
   const [cajas, invitaciones] = await Promise.all([getCajas(), getInvitaciones()]);
   const pendientes = invitaciones.length;
@@ -50,7 +51,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       </div>
 
       {!profile.username
-        ? <PedirUsuario nombre={profile.nombre} />
+        ? <PedirUsuario nombre={profile.nombre} deseado={deseado} />
         : <AvisoInvitacion nuevas={invitaciones.filter((i) => i.nueva).map((i) => ({ id: i.id, caja: i.caja_nombre, por: i.por_nombre, porUsuario: i.por_username, foto: i.por_avatar, rol: i.rol }))} />}
       <main className="flex min-w-0 flex-col gap-6">{children}</main>
 

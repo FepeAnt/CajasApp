@@ -28,6 +28,8 @@ export interface CajaResumen {
   subcajas: number;
   /** Fondos propios más los de sus cajitas. */
   fondos_total_centavos: number;
+  /** Suma de las metas de sus cajitas. */
+  subcajas_meta_centavos: number;
 }
 
 export interface Miembro {

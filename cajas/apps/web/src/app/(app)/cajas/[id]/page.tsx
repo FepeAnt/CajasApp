@@ -5,7 +5,7 @@ import { CategoryBars, Empty, InsightList, PanelHead, Faces, TxList, Avatar } fr
 import { ProjectionChart } from '@/components/charts';
 import { Icon } from '@/components/nav';
 import { CancelarInvitacion, DetenerRecurrente, QuitarMiembro, RegistrarPago, SalirDeCaja } from '@/components/acciones';
-import { EditarPresupuestos, Invitar, MoverPlata, NuevaSubcaja, NuevoMovimiento } from '@/components/dialogs';
+import { Aportar, EditarMeta, EditarPresupuestos, Invitar, MoverPlata, NuevaSubcaja, NuevoMovimiento } from '@/components/dialogs';
 import { addDays, nombreMes, ymd } from '@/lib/dates';
 import { cajasEscribibles, getCajas, getInvitacionesDeCaja, getMiembros, getPresupuestos, getProfile, getRates, getRecurrentes, getSaldos, getTodosMiembros, getTransacciones, gastosDeCaja } from '@/lib/data';
 
@@ -69,35 +69,15 @@ export default async function CajaPage({ params, searchParams }: { params: Promi
           <div className={`tnum font-display text-[clamp(32px,6vw,48px)] font-extrabold leading-none tracking-tight ${(esGrupo ? total : fondos) < 0 ? 'text-neg' : ''}`}>{fmt(esGrupo ? total : fondos)}</div>
           {esGrupo && <div className="mt-1.5 text-[13px] text-muted">Fondos propios de esta caja: {fmt(fondos)}</div>}
         </div>
-        {caja.meta_centavos ? (
-          <div className="min-w-[200px] max-w-sm flex-1">
-            <div className="mb-1 flex justify-between text-[13px] text-muted"><span>Meta</span><span>{fmt(Number(caja.meta_centavos))}</span></div>
-            <div className="h-2 overflow-hidden rounded-full bg-line"><div className="h-full rounded-full" style={{ width: `${Math.min(100, Math.max(0, ((esGrupo ? total : fondos) / Number(caja.meta_centavos)) * 100))}%`, background: caja.color }} /></div>
-          </div>
-        ) : null}
+        <Progreso caja={caja} esGrupo={esGrupo} total={total} fondos={fondos} fmt={fmt} puedeEscribir={puedeEscribir} meId={profile.id} />
       </section>
 
       {!padre && (esGrupo || puedeEscribir) && (
         <section className="panel">
           <PanelHead title="Cajitas" right={puedeEscribir ? <NuevaSubcaja padreId={id} padreNombre={caja.nombre} moneda={caja.moneda} /> : undefined} />
           {esGrupo ? (
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3">
-              {subcajas.map((c) => {
-                const f = Number(c.fondos_centavos);
-                const meta = c.meta_centavos ? Number(c.meta_centavos) : 0;
-                return (
-                  <Link key={c.id} href={`/cajas/${c.id}`} className="flex flex-col gap-1 rounded-xl border border-line p-3 transition hover:-translate-y-0.5 hover:shadow-card">
-                    <span className="flex items-center gap-2 font-semibold"><i className="h-2.5 w-2.5 rounded-full" style={{ background: c.color }} />{c.nombre}</span>
-                    <span className={`tnum font-display text-xl font-bold ${f < 0 ? 'text-neg' : ''}`}>{formatMoney(f, c.moneda)}</span>
-                    {meta ? (
-                      <span className="mt-1 block">
-                        <span className="block h-1.5 overflow-hidden rounded-full bg-line"><span className="block h-full rounded-full" style={{ width: `${Math.min(100, Math.max(0, (f / meta) * 100))}%`, background: c.color }} /></span>
-                        <span className="text-xs text-muted">{Math.min(100, Math.max(0, Math.round((f / meta) * 100)))}% de {formatMoney(meta, c.moneda)}</span>
-                      </span>
-                    ) : null}
-                  </Link>
-                );
-              })}
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-3">
+              {subcajas.map((c) => <TarjetaCajita key={c.id} c={c} puedeEscribir={puedeEscribir} meId={profile.id} />)}
             </div>
           ) : <p className="text-muted">Armá cajitas para separar la plata de esta caja por objetivo. Por ejemplo, en “Casa”: Heladera, Factura de luz.</p>}
         </section>
@@ -244,6 +224,70 @@ async function Miembros({ raizId, esOwner, esCajita, padreNombre, cajaNombre, mi
             </div>
           ))}
         </section>
+      )}
+    </div>
+  );
+}
+
+function barra(f: number, meta: number): number {
+  return Math.min(100, Math.max(0, (f / meta) * 100));
+}
+
+/** Avance hacia la meta, con lo que falta y un botón para definirla o cambiarla. */
+function Progreso({ caja, esGrupo, total, fondos, fmt, puedeEscribir, meId }: {
+  caja: import('@/lib/types').CajaResumen; esGrupo: boolean; total: number; fondos: number; fmt: (c: number) => string; puedeEscribir: boolean; meId: string;
+}) {
+  const meta = caja.meta_centavos ? Number(caja.meta_centavos) : 0;
+  const metasHijas = Number(caja.subcajas_meta_centavos);
+  const ahorrado = esGrupo ? total : fondos;
+  if (!meta && !(esGrupo && metasHijas > 0)) {
+    return puedeEscribir ? (
+      <div className="flex gap-2">
+        {caja.padre_id && <Aportar cajaId={caja.id} nombre={caja.nombre} moneda={caja.moneda} meId={meId} />}
+        <EditarMeta cajaId={caja.id} nombre={caja.nombre} moneda={caja.moneda} actual={null} />
+      </div>
+    ) : null;
+  }
+  const objetivo = meta || metasHijas;
+  const faltan = Math.max(0, objetivo - ahorrado);
+  return (
+    <div className="min-w-[220px] max-w-sm flex-1">
+      <div className="mb-1 flex justify-between text-[13px] text-muted"><span>{meta ? 'Meta' : 'Suma de las metas de las cajitas'}</span><span>{fmt(objetivo)}</span></div>
+      <div className="h-2 overflow-hidden rounded-full bg-line"><div className="h-full rounded-full" style={{ width: `${barra(ahorrado, objetivo)}%`, background: caja.color }} /></div>
+      <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-[13px]">
+        <span className={faltan === 0 ? 'font-semibold text-pos' : 'text-muted'}>{faltan === 0 ? '¡Meta lograda!' : `${Math.round(barra(ahorrado, objetivo))}% · faltan ${fmt(faltan)}`}</span>
+        {puedeEscribir && (
+          <span className="flex gap-2">
+            {caja.padre_id && <Aportar cajaId={caja.id} nombre={caja.nombre} moneda={caja.moneda} meId={meId} faltante={faltan} />}
+            {meta ? <EditarMeta cajaId={caja.id} nombre={caja.nombre} moneda={caja.moneda} actual={meta} /> : null}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TarjetaCajita({ c, puedeEscribir, meId }: { c: import('@/lib/types').CajaResumen; puedeEscribir: boolean; meId: string }) {
+  const f = Number(c.fondos_centavos);
+  const meta = c.meta_centavos ? Number(c.meta_centavos) : 0;
+  const faltan = Math.max(0, meta - f);
+  return (
+    <div className="flex flex-col gap-2 rounded-xl border border-line p-3">
+      <Link href={`/cajas/${c.id}`} className="flex flex-col gap-1 hover:opacity-80">
+        <span className="flex items-center gap-2 font-semibold"><i className="h-2.5 w-2.5 rounded-full" style={{ background: c.color }} />{c.nombre}</span>
+        <span className={`tnum font-display text-xl font-bold ${f < 0 ? 'text-neg' : ''}`}>{formatMoney(f, c.moneda)}</span>
+        {meta ? (
+          <span className="mt-1 block">
+            <span className="block h-1.5 overflow-hidden rounded-full bg-line"><span className="block h-full rounded-full" style={{ width: `${barra(f, meta)}%`, background: c.color }} /></span>
+            <span className={`text-xs ${faltan === 0 ? 'font-semibold text-pos' : 'text-muted'}`}>{faltan === 0 ? `¡Meta lograda! (${formatMoney(meta, c.moneda)})` : `${Math.round(barra(f, meta))}% de ${formatMoney(meta, c.moneda)} · faltan ${formatMoney(faltan, c.moneda)}`}</span>
+          </span>
+        ) : <span className="text-xs text-muted">Sin meta</span>}
+      </Link>
+      {puedeEscribir && (
+        <div className="mt-auto flex flex-wrap gap-2">
+          <Aportar cajaId={c.id} nombre={c.nombre} moneda={c.moneda} meId={meId} faltante={meta ? faltan : undefined} />
+          <EditarMeta cajaId={c.id} nombre={c.nombre} moneda={c.moneda} actual={meta || null} />
+        </div>
       )}
     </div>
   );

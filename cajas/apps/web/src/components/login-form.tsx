@@ -13,7 +13,7 @@ export function LoginForm() {
   const [modo, setModo] = useState<'entrar' | 'crear' | 'olvide'>('entrar');
   const [nombre, setNombre] = useState('');
   const [usuario, setUsuario] = useState('');
-  const [libre, setLibre] = useState<'' | 'ok' | 'usado' | 'invalido'>('');
+  const [libre, setLibre] = useState<'' | 'ok' | 'usado' | 'invalido' | 'error'>('');
   const [email, setEmail] = useState('');
   const [clave, setClave] = useState('');
   const [error, setError] = useState('');
@@ -26,11 +26,14 @@ export function LoginForm() {
     const u = limpiarUsername(usuario);
     if (!u) return setLibre('');
     if (!USERNAME_RE.test(u)) return setLibre('invalido');
+    let vigente = true;   // ignora respuestas de nombres que ya se borraron
     const t = setTimeout(async () => {
-      const { data } = await supabase.rpc('username_disponible', { p_u: u });
-      setLibre(data === true ? 'ok' : 'usado');
+      const { data, error: err } = await supabase.rpc('username_disponible', { p_u: u });
+      if (!vigente) return;
+      if (err) setLibre('error');   // no se pudo consultar: no se afirma que esté ocupado
+      else setLibre(data === true ? 'ok' : 'usado');
     }, 350);
-    return () => clearTimeout(t);
+    return () => { vigente = false; clearTimeout(t); };
   }, [usuario, modo, supabase]);
 
   async function submit(e: FormEvent) {
@@ -86,6 +89,7 @@ export function LoginForm() {
           {libre === 'ok' && <p className="mt-1 text-[13px] text-pos">@{limpiarUsername(usuario)} está disponible.</p>}
           {libre === 'usado' && <p className="mt-1 text-[13px] text-neg">Ese nombre ya está en uso.</p>}
           {libre === 'invalido' && <p className="mt-1 text-[13px] text-neg">Usá de 3 a 20 letras minúsculas, números o _.</p>}
+          {libre === 'error' && <p className="mt-1 text-[13px] text-muted">No pudimos comprobar si está libre. Podés seguir: lo verificamos al crear la cuenta.</p>}
         </Field>
       )}
       <Field label="Email" htmlFor="l-email"><input id="l-email" type="email" className="input" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="sofi@mail.com" /></Field>

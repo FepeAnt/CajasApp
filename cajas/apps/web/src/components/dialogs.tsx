@@ -416,6 +416,84 @@ function SubcajaForm({ padreId, moneda, onDone }: { padreId: string; moneda: Cur
   );
 }
 
+/* ───────────── meta de una caja o cajita ───────────── */
+const aTexto = (c: number): string => (c % 100 === 0 ? String(c / 100) : (c / 100).toFixed(2).replace('.', ','));
+
+export function EditarMeta({ cajaId, nombre, moneda, actual, className = 'btn btn-sm' }: { cajaId: string; nombre: string; moneda: Currency; actual: number | null; className?: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button className={className} onClick={() => setOpen(true)}>{actual ? 'Editar meta' : 'Definir meta'}</button>
+      <Dialog open={open} onClose={() => setOpen(false)} compacto title={`Meta de “${nombre}”`}><MetaForm cajaId={cajaId} moneda={moneda} actual={actual} onDone={() => setOpen(false)} /></Dialog>
+    </>
+  );
+}
+
+function MetaForm({ cajaId, moneda, actual, onDone }: { cajaId: string; moneda: Currency; actual: number | null; onDone: () => void }) {
+  const { call, pending, error, setError } = useRpc();
+  const [v, setV] = useState(actual ? aTexto(actual) : '');
+  async function guardar(e: FormEvent) {
+    e.preventDefault();
+    const m = parseMoney(v);
+    if (!m) return setError('Escribí cuánta plata querés juntar (un monto mayor a cero).');
+    const r = await call('definir_meta', { p_caja: cajaId, p_meta: m });
+    if (r.ok) onDone();
+  }
+  async function quitar() {
+    const r = await call('definir_meta', { p_caja: cajaId, p_meta: null });
+    if (r.ok) onDone();
+  }
+  return (
+    <form onSubmit={guardar} noValidate>
+      <Field label={`Cuánta plata querés juntar (${moneda})`} htmlFor="m-meta" hint="Podés cambiarla o sacarla cuando quieras. Lo que ya juntaste no se toca.">
+        <input id="m-meta" className="input" autoFocus inputMode="decimal" value={v} onChange={(e) => setV(e.target.value)} placeholder="500.000" />
+      </Field>
+      {error && <p role="alert" className="err">{error}</p>}
+      <div className="mt-2 flex flex-wrap justify-between gap-2.5">
+        {actual ? <button type="button" className="btn btn-danger" disabled={pending} onClick={quitar}>Quitar meta</button> : <span />}
+        <span className="flex gap-2.5"><button type="button" className="btn" onClick={onDone}>Cancelar</button><button className="btn btn-primary" disabled={pending}>Guardar</button></span>
+      </div>
+    </form>
+  );
+}
+
+/* ───────────── aportar a una cajita ───────────── */
+export function Aportar({ cajaId, nombre, moneda, meId, faltante, className = 'btn btn-sm btn-primary' }: { cajaId: string; nombre: string; moneda: Currency; meId: string; faltante?: number; className?: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button className={className} onClick={() => setOpen(true)}>Aportar</button>
+      <Dialog open={open} onClose={() => setOpen(false)} compacto title={`Aportar a “${nombre}”`}><AporteForm cajaId={cajaId} moneda={moneda} meId={meId} faltante={faltante} onDone={() => setOpen(false)} /></Dialog>
+    </>
+  );
+}
+
+function AporteForm({ cajaId, moneda, meId, faltante, onDone }: { cajaId: string; moneda: Currency; meId: string; faltante?: number; onDone: () => void }) {
+  const { call, pending, error, setError } = useRpc();
+  const [v, setV] = useState('');
+  const [nota, setNota] = useState('');
+  async function guardar(e: FormEvent) {
+    e.preventDefault();
+    const m = parseMoney(v);
+    if (!m) return setError('Escribí cuánta plata sumás (un monto mayor a cero).');
+    const r = await call('registrar_movimiento', {
+      p_caja: cajaId, p_tipo: 'ingreso', p_monto: m, p_descripcion: nota.trim() || 'Aporte', p_categoria: null,
+      p_confianza: null, p_fecha: today(), p_pagada_por: meId, p_divisiones: {}, p_repite: false,
+    });
+    if (r.ok) onDone();
+  }
+  return (
+    <form onSubmit={guardar} noValidate>
+      <Field label={`Monto (${moneda})`} htmlFor="a-monto" hint={faltante && faltante > 0 ? `Para llegar a la meta faltan ${formatMoney(faltante, moneda)}.` : undefined}>
+        <input id="a-monto" className="input" autoFocus inputMode="decimal" value={v} onChange={(e) => setV(e.target.value)} placeholder="20.000" />
+      </Field>
+      <Field label="Nota (opcional)" htmlFor="a-nota"><input id="a-nota" className="input" value={nota} onChange={(e) => setNota(e.target.value)} placeholder="Aporte" maxLength={120} /></Field>
+      {error && <p role="alert" className="err">{error}</p>}
+      <div className="mt-2 flex justify-end gap-2.5"><button type="button" className="btn" onClick={onDone}>Cancelar</button><button className="btn btn-primary" disabled={pending}>Sumar a la cajita</button></div>
+    </form>
+  );
+}
+
 /* ───────────── presupuestos ───────────── */
 export function EditarPresupuestos({ cajaId, cajaNombre, moneda, actuales, hayAlguno }: { cajaId: string; cajaNombre: string; moneda: Currency; actuales: Record<string, number>; hayAlguno: boolean }) {
   const [open, setOpen] = useState(false);
